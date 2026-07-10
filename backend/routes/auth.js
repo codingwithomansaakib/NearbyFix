@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
-const ServiceProvider = require('../models/serviceprovider');
+const ServiceProvider = require('../models/Serviceprovider');
 
 // Test routes
 router.get('/test', (req, res) => res.send('API is working!'));
