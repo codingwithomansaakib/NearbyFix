@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Bookings</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="config.js"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f7f9fc;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 600;
+      color: #1e2a78;
+      font-size: 2rem;
+    }
+
+    .card {
+      border-radius: 15px;
+      background: #ffffff;
+      border: 1px solid #e0e6f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      transition: 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .card p {
+      margin: 5px 0;
+      font-size: 1rem;
+    }
+
+    .btn-primary {
+      background-color: #1e2a78;
+      border: none;
+      padding: 10px 20px;
+      font-weight: 500;
+      border-radius: 6px;
+    }
+
+    .btn-primary:hover {
+      background-color: #152060;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .card p {
+        font-size: 0.95rem;
+      }
+
+      .btn-primary {
+        width: 100%;
+        font-size: 1rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      h2 {
+        font-size: 1.25rem;
+      }
+
+      .card {
+        padding: 15px;
+      }
+
+      .card p {
+        font-size: 0.9rem;
+      }
+
+      .btn-primary {
+        font-size: 0.95rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container mt-5">
+    <h2 class="mb-4">📋 My Bookings</h2>
+    <div id="bookingsList"></div>
+  </div>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    const userEmail = localStorage.getItem("userEmail");
+    const userName = localStorage.getItem("userName") || "User";
+
+    // Load Booking History
+    async function loadBookings() {
+
+      if (!userEmail) {
+        document.getElementById("bookingsList").innerHTML =
+          "<p>Please login to view your bookings.</p>";
+        return;
+      }
+
+      try {
+
+        const res = await fetch(
+          `${API_URL}/api/bookings/${encodeURIComponent(userEmail)}`
+        );
+
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+
+          document.getElementById("bookingsList").innerHTML =
+            "<p>No bookings found.</p>";
+
+          return;
+        }
+
+        document.getElementById("bookingsList").innerHTML = data.map(booking => `
+            <div class="card mb-3 p-3">
+                <p><strong>Service:</strong> ${booking.service}</p>
+                <p><strong>Provider:</strong> ${booking.providerName}</p>
+                <p><strong>Phone:</strong> ${booking.providerPhone}</p>
+                <p><strong>Pincode:</strong> ${booking.pincode}</p>
+                <p><strong>Date:</strong> ${new Date(booking.createdAt).toLocaleString()}</p>
+
+                <button class="btn btn-primary"
+                    onclick="bookService(
+                        '${booking.service}',
+                        '${booking.providerName}',
+                        '${booking.providerPhone}',
+                        '${booking.pincode}'
+                    )">
+                    Book Again
+                </button>
+            </div>
+        `).join("");
+
+      } catch (err) {
+
+        console.error(err);
+
+        document.getElementById("bookingsList").innerHTML =
+          "<p>Error loading bookings.</p>";
+
+      }
+
+    }
+
+
+    // Book Again
+    async function bookService(service, providerName, providerPhone, pincode) {
+
+      try {
+
+        const bookingData = {
+
+          userName,
+          userEmail,
+          service,
+          providerName,
+          providerPhone,
+          pincode
+
+        };
+
+        const bookingRes = await fetch(`${API_URL}/api/book`, {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify(bookingData)
+
+        });
+
+        const bookingResult = await bookingRes.json();
+
+        if (!bookingResult.success) {
+
+          alert("Booking failed.");
+
+          return;
+
+        }
+
+        // First booking is free
+        if (bookingResult.freeBooking) {
+
+          alert("Free booking confirmed!");
+
+          window.location.href = "booking-success.html";
+
+          return;
+
+        }
+
+        // Create Razorpay Order
+        const paymentRes = await fetch(`${API_URL}/api/create-payment`, {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+
+            amount: 900,
+            name: userName,
+            email: userEmail
+
+          })
+
+        });
+
+        const paymentData = await paymentRes.json();
+
+        const options = {
+
+          key: paymentData.razorpayKey,
+
+          amount: paymentData.order.amount,
+
+          currency: "INR",
+
+          name: "NearbyFix",
+
+          description: "Service Booking",
+
+          order_id: paymentData.order.id,
+
+          prefill: {
+
+            name: userName,
+
+            email: userEmail
+
+          },
+
+          handler: async function (response) {
+
+            const confirm = await fetch(`${API_URL}/api/confirm-payment`, {
+
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/json"
+              },
+
+              body: JSON.stringify({
+
+                bookingId: bookingResult.bookingId,
+                paymentId: response.razorpay_payment_id
+
+              })
+
+            });
+
+            const confirmData = await confirm.json();
+
+            if (confirmData.success) {
+
+              alert("Booking confirmed!");
+
+              window.location.href = "booking-success.html";
+
+            } else {
+
+              alert("Payment successful but booking confirmation failed.");
+
+            }
+
+          },
+
+          theme: {
+            color: "#1e2a78"
+          },
+
+          method: {
+            upi: true,
+            card: false,
+            wallet: false,
+            netbanking: false
+          }
+
+        };
+
+        const rzp = new Razorpay(options);
+
+        rzp.open();
+
+      } catch (err) {
+
+        console.error(err);
+
+        alert("Something went wrong.");
+
+      }
+
+    }
+
+    loadBookings();
+  </script>
+</body>
+
+</html>
