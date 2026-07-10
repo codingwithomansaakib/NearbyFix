@@ -18,10 +18,21 @@ mongoose.connect(process.env.MONGO_URI, {
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 //  2. CORS config
+const allowedOrigins = [
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "https://nearby-fix.vercel.app" // <-- replace with your actual Vercel URL
+];
+
 app.use(cors({
-  origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true
 }));
 
