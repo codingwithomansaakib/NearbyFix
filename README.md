@@ -6,6 +6,8 @@ Users can search for nearby service providers using their pincode, book services
 
 ---
 
+## Live work :
+Live_url = https://nearby-fix.vercel.app/
 ## ✨ Features
 
 - 👤 User Registration & Login
@@ -73,7 +75,7 @@ NearbyFix/
 ### Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/NearbyFix.git
+git clone https://github.com/codingwithomansaakib/NearbyFix
 ```
 
 ### Backend
